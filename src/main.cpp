@@ -1,5 +1,3 @@
-#include "crow.h"
-#include <SQLiteCpp/SQLiteCpp.h>
 #include <taglib/fileref.h>
 #include <iostream>
 
