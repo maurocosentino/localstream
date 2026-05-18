@@ -3,8 +3,8 @@
 
 namespace localstream {
 
-ApiRouter::ApiRouter(Database& db, crow::SimpleApp& app)
-    : db_(db), app_(app)
+ApiRouter::ApiRouter(Database& db, crow::SimpleApp& app, LibraryScanner& library_scanner)
+    : db_(db), app_(app), library_scanner_(library_scanner)
 {
     setupRoutes();
 }
@@ -113,6 +113,17 @@ void ApiRouter::setupRoutes()
         }
 
         return crow::response(200, trackToJson(*track));
+    });
+
+    // POST /api/scan
+    CROW_ROUTE(app_, "/api/scan").methods(crow::HTTPMethod::Post)
+    ([this]{
+        int new_tracks = library_scanner_.scan();
+
+        crow::json::wvalue json;
+        json["status"]     = "ok";
+        json["new_tracks"] = new_tracks;
+        return crow::response(200, json);
     });
 }
 

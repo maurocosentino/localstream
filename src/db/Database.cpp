@@ -89,14 +89,14 @@ int Database::insertAlbum(const std::string& title, int artist_id, int year)
     return static_cast<int>(db_.getLastInsertRowid());
 }
 
-int Database::insertTrack(const Track& track)
+int Database::insertTrack(const Track& track, bool& inserted)
 {
-    // Si el archivo ya está en la DB, lo saltamos
     SQLite::Statement query(db_,
         "SELECT id FROM tracks WHERE file_path = ?");
     query.bind(1, track.file_path);
 
     if (query.executeStep()) {
+        inserted = false;
         return query.getColumn(0).getInt();
     }
 
@@ -118,6 +118,7 @@ int Database::insertTrack(const Track& track)
     insert.bind(8, track.format);
     insert.exec();
 
+    inserted = true;
     return static_cast<int>(db_.getLastInsertRowid());
 }
 

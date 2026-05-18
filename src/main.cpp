@@ -2,8 +2,7 @@
 #include <iostream>
 #include "config/AppConfig.hpp"
 #include "db/Database.hpp"
-#include "scanner/FileScanner.hpp"
-#include "metadata/MetadataReader.hpp"
+#include "scanner/LibraryScanner.hpp"
 #include "api/ApiRouter.hpp"
 #include "streaming/StreamHandler.hpp"
 
@@ -15,37 +14,15 @@ int main()
         auto config = localstream::AppConfig::load("../config.json");
 
         localstream::Database       db(config.db_path);
-        localstream::FileScanner    scanner;
-        localstream::MetadataReader reader;
+        localstream::LibraryScanner library_scanner(db, config.media_directories);
 
         // Escaneo inicial
         std::cout << "Escaneando biblioteca...\n";
-        auto files = scanner.scan(config.media_directories);
-        std::cout << "Archivos encontrados: " << files.size() << "\n";
-
-        for (const auto& file_path : files) {
-            auto metadata = reader.read(file_path);
-            if (!metadata) continue;
-
-            int artist_id = db.insertArtist(metadata->artist_name);
-            int album_id  = db.insertAlbum(metadata->album_title, artist_id, metadata->year);
-
-            localstream::Track track;
-            track.title        = metadata->title;
-            track.artist_id    = artist_id;
-            track.album_id     = album_id;
-            track.file_path    = metadata->file_path;
-            track.duration_s   = metadata->duration_s;
-            track.track_number = metadata->track_number;
-            track.file_size    = metadata->file_size;
-            track.format       = metadata->format;
-
-            db.insertTrack(track);
-        }
+        library_scanner.scan();
 
         // Arrancar servidor HTTP
         crow::SimpleApp app;
-        localstream::ApiRouter    router(db, app);
+        localstream::ApiRouter     router(db, app, library_scanner);
         localstream::StreamHandler streamer(db, app);
 
         std::cout << "Servidor escuchando en puerto " << config.server_port << "\n";

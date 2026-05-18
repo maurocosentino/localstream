@@ -49,6 +49,7 @@ add_executable(localstream
     src/config/AppConfig.cpp
     src/db/Database.cpp
     src/scanner/FileScanner.cpp
+    src/scanner/LibraryScanner.cpp
     src/metadata/MetadataReader.cpp
     src/api/ApiRouter.cpp
     src/streaming/StreamHandler.cpp

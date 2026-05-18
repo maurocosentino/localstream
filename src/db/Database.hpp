@@ -15,8 +15,7 @@ public:
     // Inserción — retornan el id del registro (nuevo o existente)
     int insertArtist(const std::string& name);
     int insertAlbum(const std::string& title, int artist_id, int year);
-    int insertTrack(const Track& track);
-
+    int insertTrack(const Track& track, bool& inserted);
     // Consultas
     std::vector<Artist> getArtists();
     std::vector<Album>  getAlbums(int artist_id);

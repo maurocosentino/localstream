@@ -2,20 +2,21 @@
 
 #include "crow.h"
 #include "db/Database.hpp"
+#include "scanner/LibraryScanner.hpp"
 
 namespace localstream {
 
 class ApiRouter {
 public:
-    ApiRouter(Database& db, crow::SimpleApp& app);
+    ApiRouter(Database& db, crow::SimpleApp& app, LibraryScanner& library_scanner);
 
 private:
-    Database&       db_;
+    Database&        db_;
     crow::SimpleApp& app_;
+    LibraryScanner&  library_scanner_;
 
     void setupRoutes();
 
-    // Helpers de serialización
     crow::json::wvalue artistToJson(const Artist& artist);
     crow::json::wvalue albumToJson(const Album& album);
     crow::json::wvalue trackToJson(const Track& track);
