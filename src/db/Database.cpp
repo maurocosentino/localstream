@@ -1,5 +1,16 @@
 #include "db/Database.hpp"
 #include <stdexcept>
+  #include <taglib/fileref.h>
+  #include <taglib/tag.h>
+  #include <taglib/id3v2tag.h>
+  #include <taglib/mpegfile.h>
+  #include <taglib/flacfile.h>
+  #include <taglib/attachedpictureframe.h>
+  #include <taglib/mp4file.h>
+  #include <taglib/mp4tag.h>
+  #include <taglib/mp4coverart.h>
+  #include <taglib/vorbisfile.h>
+  #include <taglib/opusfile.h>
 
 namespace localstream {
 
@@ -9,6 +20,7 @@ Database::Database(const std::string& db_path)
     db_.exec("PRAGMA journal_mode=WAL;");
     db_.exec("PRAGMA foreign_keys=ON;");
     createTables();
+    migrateCoverCache(); 
 }
 
 void Database::createTables()
@@ -22,10 +34,12 @@ void Database::createTables()
 
     db_.exec(R"(
         CREATE TABLE IF NOT EXISTS albums (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            title     TEXT NOT NULL,
-            artist_id INTEGER NOT NULL,
-            year      INTEGER,
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            title      TEXT NOT NULL,
+            artist_id  INTEGER NOT NULL,
+            year       INTEGER,
+            cover_blob BLOB,
+            cover_mime TEXT,
             FOREIGN KEY (artist_id) REFERENCES artists(id),
             UNIQUE(title, artist_id)
         );
@@ -304,5 +318,189 @@ std::vector<Track> Database::searchTracks(const std::string& query)
     }
 
     return tracks;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+void Database::migrateCoverCache()
+{
+    // Columna cover_blob y cover_mime en albums — se agrega solo si no existe
+    try {
+        db_.exec(R"(
+            ALTER TABLE albums ADD COLUMN cover_blob BLOB;
+        )");
+    } catch (...) {}
+
+    try {
+        db_.exec(R"(
+            ALTER TABLE albums ADD COLUMN cover_mime TEXT;
+        )");
+    } catch (...) {}
+}
+
+std::string Database::getAnyTrackPath(int album_id)
+{
+    SQLite::Statement q(db_,
+        "SELECT file_path FROM tracks WHERE album_id = ? LIMIT 1");
+    q.bind(1, album_id);
+    if (q.executeStep())
+        return q.getColumn(0).getString();
+    return {};
+}
+
+// Lee la portada embebida usando TagLib.
+// Soporta: MP3 (ID3v2), FLAC, OGG Vorbis, MP4/M4A.
+static std::optional<localstream::CoverData> extractCoverFromFile(
+    const std::string& path)
+{
+    using namespace TagLib;
+
+    // ── MP3 / ID3v2 ──────────────────────────────────────────────────────────
+    {
+        MPEG::File f(path.c_str());
+        if (f.isValid() && f.ID3v2Tag()) {
+            auto& frames = f.ID3v2Tag()->frameListMap()["APIC"];
+            if (!frames.isEmpty()) {
+                auto* frame = dynamic_cast<ID3v2::AttachedPictureFrame*>(
+                    frames.front());
+                if (frame) {
+                    const auto& pic = frame->picture();
+                    localstream::CoverData cd;
+                    cd.data.assign(
+                        reinterpret_cast<const unsigned char*>(pic.data()),
+                        reinterpret_cast<const unsigned char*>(pic.data()) + pic.size());
+                    cd.mime_type = frame->mimeType().toCString();
+                    if (cd.mime_type.empty()) cd.mime_type = "image/jpeg";
+                    return cd;
+                }
+            }
+        }
+    }
+
+    // ── FLAC ─────────────────────────────────────────────────────────────────
+    {
+        FLAC::File f(path.c_str());
+        if (f.isValid()) {
+            const auto& pics = f.pictureList();
+            if (!pics.isEmpty()) {
+                auto* pic = pics.front();
+                localstream::CoverData cd;
+                const auto& data = pic->data();
+                cd.data.assign(
+                    reinterpret_cast<const unsigned char*>(data.data()),
+                    reinterpret_cast<const unsigned char*>(data.data()) + data.size());
+                cd.mime_type = pic->mimeType().toCString(true);
+                if (cd.mime_type.empty()) cd.mime_type = "image/jpeg";
+                return cd;
+            }
+        }
+    }
+
+    // ── MP4 / M4A ────────────────────────────────────────────────────────────
+    {
+        MP4::File f(path.c_str());
+        if (f.isValid() && f.tag()) {
+            auto& items = f.tag()->itemMap();
+            if (items.contains("covr")) {
+                const auto& covers = items["covr"].toCoverArtList();
+                if (!covers.isEmpty()) {
+                    const auto& cover = covers.front();
+                    localstream::CoverData cd;
+                    const auto& data = cover.data();
+                    cd.data.assign(
+                        reinterpret_cast<const unsigned char*>(data.data()),
+                        reinterpret_cast<const unsigned char*>(data.data()) + data.size());
+                    cd.mime_type = (cover.format() == MP4::CoverArt::PNG)
+                                   ? "image/png" : "image/jpeg";
+                    return cd;
+                }
+            }
+        }
+    }
+
+        // ── OGG Vorbis ───────────────────────────────────────────────────────────────
+    {
+        Ogg::Vorbis::File f(path.c_str());
+        if (f.isValid() && f.tag()) {
+            const auto& pics = f.tag()->pictureList();
+            if (!pics.isEmpty()) {
+                auto* pic = pics.front();
+                localstream::CoverData cd;
+                const auto& data = pic->data();
+                cd.data.assign(
+                    reinterpret_cast<const unsigned char*>(data.data()),
+                    reinterpret_cast<const unsigned char*>(data.data()) + data.size());
+                cd.mime_type = pic->mimeType().toCString(true);
+                if (cd.mime_type.empty()) cd.mime_type = "image/jpeg";
+                return cd;
+            }
+        }
+    }
+
+    // ── OGG Opus ─────────────────────────────────────────────────────────────────
+    {
+        TagLib::Ogg::Opus::File f(path.c_str());
+        if (f.isValid() && f.tag()) {
+            const auto& pics = f.tag()->pictureList();
+            if (!pics.isEmpty()) {
+                auto* pic = pics.front();
+                localstream::CoverData cd;
+                const auto& data = pic->data();
+                cd.data.assign(
+                    reinterpret_cast<const unsigned char*>(data.data()),
+                    reinterpret_cast<const unsigned char*>(data.data()) + data.size());
+                cd.mime_type = pic->mimeType().toCString(true);
+                if (cd.mime_type.empty()) cd.mime_type = "image/jpeg";
+                return cd;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<localstream::CoverData> Database::getAlbumCover(int album_id)
+{
+    // 1. Intentar desde caché en la DB
+    {
+        SQLite::Statement q(db_,
+            "SELECT cover_blob, cover_mime FROM albums WHERE id = ?");
+        q.bind(1, album_id);
+        if (q.executeStep()) {
+            auto col_blob = q.getColumn(0);
+            auto col_mime = q.getColumn(1);
+            if (!col_blob.isNull() && col_blob.getBytes() > 0) {
+                CoverData cd;
+                const void* ptr  = col_blob.getBlob();
+                int          sz   = col_blob.getBytes();
+                cd.data.assign(
+                    static_cast<const unsigned char*>(ptr),
+                    static_cast<const unsigned char*>(ptr) + sz);
+                cd.mime_type = col_mime.isNull()
+                               ? "image/jpeg"
+                               : col_mime.getString();
+                return cd;
+            }
+        }
+    }
+
+    // 2. Leer desde el archivo de audio
+    const std::string path = getAnyTrackPath(album_id);
+    if (path.empty()) return std::nullopt;
+
+    auto cd = extractCoverFromFile(path);
+    if (!cd) return std::nullopt;
+
+    // 3. Guardar en caché
+    try {
+        SQLite::Statement upd(db_,
+            "UPDATE albums SET cover_blob = ?, cover_mime = ? WHERE id = ?");
+        upd.bind(1, cd->data.data(), static_cast<int>(cd->data.size()));
+        upd.bind(2, cd->mime_type);
+        upd.bind(3, album_id);
+        upd.exec();
+    } catch (...) {}
+
+    return cd;
 }
 } // namespace localstream

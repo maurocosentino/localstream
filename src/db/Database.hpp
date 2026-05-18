@@ -8,6 +8,11 @@
 
 namespace localstream {
 
+struct CoverData {
+    std::vector<unsigned char> data;
+    std::string                mime_type;   // "image/jpeg", "image/png", etc.
+};
+
 class Database {
 public:
     explicit Database(const std::string& db_path);
@@ -16,20 +21,28 @@ public:
     int insertArtist(const std::string& name);
     int insertAlbum(const std::string& title, int artist_id, int year);
     int insertTrack(const Track& track, bool& inserted);
+
     // Consultas
-    std::vector<Artist> getArtists();
-    std::vector<Album>  getAlbums(int artist_id);
-    std::vector<Track>  getTracks(int album_id);
-    std::vector<Track> getAllTracks(int limit, int offset);
-    int                getTracksCount();   
-    std::string         getTrackPath(int track_id);
+    std::vector<Artist>  getArtists();
+    std::vector<Album>   getAlbums(int artist_id);
+    std::vector<Track>   getTracks(int album_id);
+    std::vector<Track>   getAllTracks(int limit, int offset);
+    int                  getTracksCount();
+    std::string          getTrackPath(int track_id);
     std::optional<Track> getTrackById(int track_id);
-    std::vector<Track> searchTracks(const std::string& query);
+    std::vector<Track>   searchTracks(const std::string& query);
+
+    // Portadas
+    std::optional<CoverData> getAlbumCover(int album_id);
 
 private:
     SQLite::Database db_;
 
     void createTables();
+    void migrateCoverCache();
+
+    // Devuelve el file_path de cualquier track del álbum
+    std::string getAnyTrackPath(int album_id);
 };
 
 } // namespace localstream
