@@ -52,6 +52,7 @@ add_executable(localstream
     src/scanner/LibraryScanner.cpp
     src/metadata/MetadataReader.cpp
     src/api/ApiRouter.cpp
+    src/api/WebHandler.cpp
     src/streaming/StreamHandler.cpp
 )
 target_include_directories(localstream PRIVATE

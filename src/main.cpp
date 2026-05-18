@@ -1,21 +1,27 @@
 #include "crow.h"
-#include <iostream>
 #include "config/AppConfig.hpp"
 #include "db/Database.hpp"
 #include "scanner/LibraryScanner.hpp"
 #include "api/ApiRouter.hpp"
 #include "streaming/StreamHandler.hpp"
 #include "logger/Logger.hpp"
+#include "api/WebHandler.hpp"
 
 int main()
 {
-    // Nivel INFO por default — cambiá a DEBUG para ver todos los tracks
-    localstream::Logger::instance().setLevel(localstream::LogLevel::INFO);
-
-    LOG_INFO("Main", "LocalStream v0.1.0 arrancando...");
-
     try {
         auto config = localstream::AppConfig::load("../config.json");
+
+        // Configurar log level desde config — antes de cualquier LOG_*
+        auto levelFromString = [](const std::string& s) {
+            if (s == "DEBUG") return localstream::LogLevel::DEBUG;
+            if (s == "WARN")  return localstream::LogLevel::WARN;
+            if (s == "ERROR") return localstream::LogLevel::ERROR;
+            return localstream::LogLevel::INFO;
+        };
+        localstream::Logger::instance().setLevel(levelFromString(config.log_level));
+
+        LOG_INFO("Main", "LocalStream v0.1.0 arrancando...");
         LOG_INFO("Main", "Configuracion cargada. Puerto: " + std::to_string(config.server_port));
 
         localstream::Database       db(config.db_path);
@@ -27,6 +33,7 @@ int main()
         crow::SimpleApp app;
         localstream::ApiRouter     router(db, app, library_scanner);
         localstream::StreamHandler streamer(db, app);
+        localstream::WebHandler web(db, app);
 
         LOG_INFO("Main", "Servidor escuchando en puerto " + std::to_string(config.server_port));
         app.loglevel(crow::LogLevel::Warning);
