@@ -4,12 +4,53 @@
 namespace localstream {
 
 LibraryScanner::LibraryScanner(Database& db, const std::vector<std::string>& directories)
-    : db_(db), directories_(directories)
+    : db_(db), directories_(directories), is_scanning_(false)
 {
+}
+
+LibraryScanner::~LibraryScanner()
+{
+    // Si el thread de scan está corriendo, esperamos que termine
+    if (scan_thread_.joinable()) {
+        scan_thread_.join();
+    }
+}
+
+bool LibraryScanner::isScanning() const
+{
+    return is_scanning_.load();
 }
 
 int LibraryScanner::scan()
 {
+    return runScan();
+}
+
+bool LibraryScanner::scanAsync()
+{
+    // Si ya hay un scan en curso, rechazamos
+    bool expected = false;
+    if (!is_scanning_.compare_exchange_strong(expected, true)) {
+        return false;
+    }
+
+    // Si hay un thread anterior terminado, hacemos join antes de crear uno nuevo
+    if (scan_thread_.joinable()) {
+        scan_thread_.join();
+    }
+
+    // Lanzamos el scan en un thread separado
+    scan_thread_ = std::thread([this]{
+        runScan();
+        is_scanning_.store(false);
+    });
+
+    return true;
+}
+
+int LibraryScanner::runScan()
+{
+    std::lock_guard<std::mutex> lock(db_mutex_);
     int new_tracks = 0;
 
     auto files = scanner_.scan(directories_);
@@ -18,7 +59,6 @@ int LibraryScanner::scan()
     for (const auto& file_path : files) {
         auto metadata = reader_.read(file_path);
         if (!metadata) {
-            std::cout << "  [skip] " << file_path << "\n";
             continue;
         }
 
@@ -36,14 +76,15 @@ int LibraryScanner::scan()
         track.format       = metadata->format;
 
         bool inserted = false;
-        int id = db_.insertTrack(track, inserted);
+        db_.insertTrack(track, inserted);
         if (inserted) {
             new_tracks++;
             std::cout << "  [ok] " << metadata->artist_name
                       << " — " << metadata->title << "\n";
-}
+        }
     }
 
+    std::cout << "Scan completado. Tracks nuevos: " << new_tracks << "\n";
     return new_tracks;
 }
 
