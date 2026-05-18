@@ -5,6 +5,7 @@
     "server": {
         "port": 8080
     },
+    "log_level": "INFO",
     "media_directories": [
         "/home/mauro/Música"
     ]
