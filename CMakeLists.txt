@@ -51,8 +51,8 @@ add_executable(localstream
     src/scanner/FileScanner.cpp
     src/metadata/MetadataReader.cpp
     src/api/ApiRouter.cpp
+    src/streaming/StreamHandler.cpp
 )
-
 target_include_directories(localstream PRIVATE
     src/
     ${SQLITE3_INCLUDE_DIRS}

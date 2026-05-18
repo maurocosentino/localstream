@@ -5,6 +5,7 @@
 #include "scanner/FileScanner.hpp"
 #include "metadata/MetadataReader.hpp"
 #include "api/ApiRouter.hpp"
+#include "streaming/StreamHandler.hpp"
 
 int main()
 {
@@ -44,7 +45,8 @@ int main()
 
         // Arrancar servidor HTTP
         crow::SimpleApp app;
-        localstream::ApiRouter router(db, app);
+        localstream::ApiRouter    router(db, app);
+        localstream::StreamHandler streamer(db, app);
 
         std::cout << "Servidor escuchando en puerto " << config.server_port << "\n";
         app.port(config.server_port).multithreaded().run();
