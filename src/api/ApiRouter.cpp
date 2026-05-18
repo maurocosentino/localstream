@@ -130,6 +130,42 @@ void ApiRouter::setupRoutes()
         json["status"] = "scanning";
         return crow::response(202, json);
     });
+
+    // GET /api/tracks?offset=0&limit=50
+    CROW_ROUTE(app_, "/api/tracks")
+    ([this](const crow::request& req){
+        // Extraer query params con valores default
+        int limit  = 50;
+        int offset = 0;
+
+        auto limit_param  = req.url_params.get("limit");
+        auto offset_param = req.url_params.get("offset");
+
+        if (limit_param)  limit  = std::stoi(limit_param);
+        if (offset_param) offset = std::stoi(offset_param);
+
+        // Sanitización — evitamos valores absurdos
+        if (limit  < 1)   limit  = 1;
+        if (limit  > 200) limit  = 200;
+        if (offset < 0)   offset = 0;
+
+        auto tracks = db_.getAllTracks(limit, offset);
+        int  total  = db_.getTracksCount();
+
+        crow::json::wvalue json;
+        crow::json::wvalue::list list;
+
+        for (const auto& track : tracks) {
+            list.push_back(trackToJson(track));
+        }
+
+        json["tracks"] = std::move(list);
+        json["total"]  = total;
+        json["limit"]  = limit;
+        json["offset"] = offset;
+
+        return crow::response(200, json);
+    });
 }
 
 } // namespace localstream

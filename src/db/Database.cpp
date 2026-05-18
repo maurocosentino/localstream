@@ -229,4 +229,42 @@ std::optional<Track> Database::getTrackById(int track_id)
     return track;
 }
 
+std::vector<Track> Database::getAllTracks(int limit, int offset)
+{
+    std::vector<Track> tracks;
+
+    SQLite::Statement query(db_, R"(
+        SELECT id, title, artist_id, album_id,
+               file_path, duration_s, track_number, file_size, format
+        FROM tracks
+        ORDER BY artist_id, album_id, track_number
+        LIMIT ? OFFSET ?
+    )");
+    query.bind(1, limit);
+    query.bind(2, offset);
+
+    while (query.executeStep()) {
+        Track track;
+        track.id           = query.getColumn(0).getInt();
+        track.title        = query.getColumn(1).getString();
+        track.artist_id    = query.getColumn(2).getInt();
+        track.album_id     = query.getColumn(3).getInt();
+        track.file_path    = query.getColumn(4).getString();
+        track.duration_s   = query.getColumn(5).getInt();
+        track.track_number = query.getColumn(6).getInt();
+        track.file_size    = query.getColumn(7).getInt();
+        track.format       = query.getColumn(8).getString();
+        tracks.push_back(track);
+    }
+
+    return tracks;
+}
+
+int Database::getTracksCount()
+{
+    SQLite::Statement query(db_, "SELECT COUNT(*) FROM tracks");
+    query.executeStep();
+    return query.getColumn(0).getInt();
+}
+
 } // namespace localstream

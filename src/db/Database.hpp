@@ -20,6 +20,8 @@ public:
     std::vector<Artist> getArtists();
     std::vector<Album>  getAlbums(int artist_id);
     std::vector<Track>  getTracks(int album_id);
+    std::vector<Track> getAllTracks(int limit, int offset);
+    int                getTracksCount();   
     std::string         getTrackPath(int track_id);
     std::optional<Track> getTrackById(int track_id);
 
