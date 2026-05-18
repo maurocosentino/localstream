@@ -36,8 +36,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sqlitecpp)
 
+# nlohmann/json (header-only, un solo archivo)
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 add_executable(localstream
     src/main.cpp
+    src/config/AppConfig.cpp
 )
 
 target_include_directories(localstream PRIVATE
@@ -51,4 +60,5 @@ target_link_libraries(localstream PRIVATE
     SQLiteCpp
     ${SQLITE3_LIBRARIES}
     ${TAGLIB_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
