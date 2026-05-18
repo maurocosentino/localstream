@@ -50,6 +50,7 @@ add_executable(localstream
     src/db/Database.cpp
     src/scanner/FileScanner.cpp
     src/metadata/MetadataReader.cpp
+    src/api/ApiRouter.cpp
 )
 
 target_include_directories(localstream PRIVATE

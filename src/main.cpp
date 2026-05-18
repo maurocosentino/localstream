@@ -4,6 +4,7 @@
 #include "db/Database.hpp"
 #include "scanner/FileScanner.hpp"
 #include "metadata/MetadataReader.hpp"
+#include "api/ApiRouter.hpp"
 
 int main()
 {
@@ -11,21 +12,19 @@ int main()
 
     try {
         auto config = localstream::AppConfig::load("../config.json");
+
         localstream::Database       db(config.db_path);
         localstream::FileScanner    scanner;
         localstream::MetadataReader reader;
 
+        // Escaneo inicial
         std::cout << "Escaneando biblioteca...\n";
-
         auto files = scanner.scan(config.media_directories);
         std::cout << "Archivos encontrados: " << files.size() << "\n";
 
         for (const auto& file_path : files) {
             auto metadata = reader.read(file_path);
-            if (!metadata) {
-                std::cout << "  [skip] " << file_path << "\n";
-                continue;
-            }
+            if (!metadata) continue;
 
             int artist_id = db.insertArtist(metadata->artist_name);
             int album_id  = db.insertAlbum(metadata->album_title, artist_id, metadata->year);
@@ -41,12 +40,14 @@ int main()
             track.format       = metadata->format;
 
             db.insertTrack(track);
-            std::cout << "  [ok] " << metadata->artist_name
-                      << " — " << metadata->title << "\n";
         }
 
-        auto artists = db.getArtists();
-        std::cout << "\nArtistas en DB: " << artists.size() << "\n";
+        // Arrancar servidor HTTP
+        crow::SimpleApp app;
+        localstream::ApiRouter router(db, app);
+
+        std::cout << "Servidor escuchando en puerto " << config.server_port << "\n";
+        app.port(config.server_port).multithreaded().run();
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";

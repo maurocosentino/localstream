@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 #include <SQLiteCpp/SQLiteCpp.h>
 #include "models.hpp"
 
@@ -21,6 +22,7 @@ public:
     std::vector<Album>  getAlbums(int artist_id);
     std::vector<Track>  getTracks(int album_id);
     std::string         getTrackPath(int track_id);
+    std::optional<Track> getTrackById(int track_id);
 
 private:
     SQLite::Database db_;
