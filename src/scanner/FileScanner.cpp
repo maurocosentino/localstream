@@ -34,11 +34,18 @@ std::vector<std::string> FileScanner::scan(const std::vector<std::string>& direc
 bool FileScanner::isAudioFile(const std::string& path)
 {
     std::string ext = fs::path(path).extension().string();
-
-    // Convertimos a lowercase para manejar .MP3, .Flac, etc.
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    return ext == ".mp3" || ext == ".flac";
+    static const std::vector<std::string> audio_extensions = {
+        ".mp3", ".flac", ".ogg", ".opus", ".wav",
+        ".aac", ".m4a", ".wma", ".aiff", ".ape"
+    };
+
+    for (const auto& valid_ext : audio_extensions) {
+        if (ext == valid_ext) return true;
+    }
+
+    return false;
 }
 
 } // namespace localstream
