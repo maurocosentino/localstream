@@ -118,12 +118,17 @@ void ApiRouter::setupRoutes()
     // POST /api/scan
     CROW_ROUTE(app_, "/api/scan").methods(crow::HTTPMethod::Post)
     ([this]{
-        int new_tracks = library_scanner_.scan();
+        if (library_scanner_.isScanning()) {
+            crow::json::wvalue json;
+            json["status"] = "already_scanning";
+            return crow::response(409, json);
+        }
+
+        library_scanner_.scanAsync();
 
         crow::json::wvalue json;
-        json["status"]     = "ok";
-        json["new_tracks"] = new_tracks;
-        return crow::response(200, json);
+        json["status"] = "scanning";
+        return crow::response(202, json);
     });
 }
 
