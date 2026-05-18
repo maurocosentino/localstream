@@ -1,5 +1,6 @@
 #include "scanner/LibraryScanner.hpp"
-#include <iostream>
+#include "logger/Logger.hpp"
+#include <sstream>
 
 namespace localstream {
 
@@ -10,7 +11,6 @@ LibraryScanner::LibraryScanner(Database& db, const std::vector<std::string>& dir
 
 LibraryScanner::~LibraryScanner()
 {
-    // Si el thread de scan está corriendo, esperamos que termine
     if (scan_thread_.joinable()) {
         scan_thread_.join();
     }
@@ -28,18 +28,15 @@ int LibraryScanner::scan()
 
 bool LibraryScanner::scanAsync()
 {
-    // Si ya hay un scan en curso, rechazamos
     bool expected = false;
     if (!is_scanning_.compare_exchange_strong(expected, true)) {
         return false;
     }
 
-    // Si hay un thread anterior terminado, hacemos join antes de crear uno nuevo
     if (scan_thread_.joinable()) {
         scan_thread_.join();
     }
 
-    // Lanzamos el scan en un thread separado
     scan_thread_ = std::thread([this]{
         runScan();
         is_scanning_.store(false);
@@ -53,16 +50,16 @@ int LibraryScanner::runScan()
     int new_tracks = 0;
 
     auto files = scanner_.scan(directories_);
-    std::cout << "Archivos encontrados: " << files.size() << "\n";
+
+    LOG_INFO("Scanner", "Archivos encontrados: " + std::to_string(files.size()));
 
     for (const auto& file_path : files) {
-        // Lectura de metadata — sin lock, no toca la DB
         auto metadata = reader_.read(file_path);
         if (!metadata) {
+            LOG_WARN("Scanner", "No se pudo leer metadata: " + file_path);
             continue;
         }
 
-        // Lock granular — solo durante las escrituras a DB
         {
             std::lock_guard<std::mutex> lock(db_mutex_);
 
@@ -83,14 +80,12 @@ int LibraryScanner::runScan()
             db_.insertTrack(track, inserted);
             if (inserted) {
                 new_tracks++;
-                std::cout << "  [ok] " << metadata->artist_name
-                          << " — " << metadata->title << "\n";
+                LOG_DEBUG("Scanner", metadata->artist_name + " — " + metadata->title);
             }
-        } // lock liberado acá — lecturas pueden entrar entre archivos
-
+        }
     }
 
-    std::cout << "Scan completado. Tracks nuevos: " << new_tracks << "\n";
+    LOG_INFO("Scanner", "Scan completado. Tracks nuevos: " + std::to_string(new_tracks));
     return new_tracks;
 }
 
