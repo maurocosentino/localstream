@@ -47,8 +47,8 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_executable(localstream
     src/main.cpp
     src/config/AppConfig.cpp
+    src/db/Database.cpp
 )
-
 target_include_directories(localstream PRIVATE
     src/
     ${SQLITE3_INCLUDE_DIRS}
