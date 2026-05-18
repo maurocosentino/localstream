@@ -48,7 +48,10 @@ add_executable(localstream
     src/main.cpp
     src/config/AppConfig.cpp
     src/db/Database.cpp
+    src/scanner/FileScanner.cpp
+    src/metadata/MetadataReader.cpp
 )
+
 target_include_directories(localstream PRIVATE
     src/
     ${SQLITE3_INCLUDE_DIRS}

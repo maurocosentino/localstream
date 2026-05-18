@@ -28,4 +28,17 @@ struct Track {
     std::string format;
 };
 
+// Metadata cruda leída de un archivo — antes de resolver IDs
+struct TrackMetadata {
+    std::string file_path;
+    std::string title;
+    std::string artist_name;
+    std::string album_title;
+    int         year;
+    int         duration_s;
+    int         track_number;
+    int         file_size;
+    std::string format;
+};
+
 } // namespace localstream
