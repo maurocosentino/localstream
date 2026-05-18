@@ -166,6 +166,34 @@ void ApiRouter::setupRoutes()
 
         return crow::response(200, json);
     });
+
+    // GET /api/search?q=query
+    CROW_ROUTE(app_, "/api/search")
+    ([this](const crow::request& req){
+        auto q = req.url_params.get("q");
+
+        if (!q || std::string(q).empty()) {
+            crow::json::wvalue json;
+            json["error"] = "Parámetro 'q' requerido";
+            return crow::response(400, json);
+        }
+
+        std::string query(q);
+        auto tracks = db_.searchTracks(query);
+
+        crow::json::wvalue json;
+        crow::json::wvalue::list list;
+
+        for (const auto& track : tracks) {
+            list.push_back(trackToJson(track));
+        }
+
+        json["tracks"] = std::move(list);
+        json["count"]  = static_cast<int>(tracks.size());
+        json["query"]  = query;
+
+        return crow::response(200, json);
+    });
 }
 
 } // namespace localstream

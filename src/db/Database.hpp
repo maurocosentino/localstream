@@ -24,6 +24,7 @@ public:
     int                getTracksCount();   
     std::string         getTrackPath(int track_id);
     std::optional<Track> getTrackById(int track_id);
+    std::vector<Track> searchTracks(const std::string& query);
 
 private:
     SQLite::Database db_;

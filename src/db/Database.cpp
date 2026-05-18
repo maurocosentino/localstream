@@ -267,4 +267,42 @@ int Database::getTracksCount()
     return query.getColumn(0).getInt();
 }
 
+std::vector<Track> Database::searchTracks(const std::string& query)
+{
+    std::vector<Track> tracks;
+
+    SQLite::Statement stmt(db_, R"(
+        SELECT t.id, t.title, t.artist_id, t.album_id,
+               t.file_path, t.duration_s, t.track_number, t.file_size, t.format
+        FROM tracks t
+        JOIN artists ar ON t.artist_id = ar.id
+        JOIN albums  al ON t.album_id  = al.id
+        WHERE t.title   LIKE ? COLLATE NOCASE
+           OR ar.name   LIKE ? COLLATE NOCASE
+           OR al.title  LIKE ? COLLATE NOCASE
+        ORDER BY ar.name, al.title, t.track_number
+        LIMIT 100
+    )");
+
+    std::string pattern = "%" + query + "%";
+    stmt.bind(1, pattern);
+    stmt.bind(2, pattern);
+    stmt.bind(3, pattern);
+
+    while (stmt.executeStep()) {
+        Track track;
+        track.id           = stmt.getColumn(0).getInt();
+        track.title        = stmt.getColumn(1).getString();
+        track.artist_id    = stmt.getColumn(2).getInt();
+        track.album_id     = stmt.getColumn(3).getInt();
+        track.file_path    = stmt.getColumn(4).getString();
+        track.duration_s   = stmt.getColumn(5).getInt();
+        track.track_number = stmt.getColumn(6).getInt();
+        track.file_size    = stmt.getColumn(7).getInt();
+        track.format       = stmt.getColumn(8).getString();
+        tracks.push_back(track);
+    }
+
+    return tracks;
+}
 } // namespace localstream
