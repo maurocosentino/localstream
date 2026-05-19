@@ -43,3 +43,14 @@ export interface SearchResponse {
     count: number
     query: string
 }
+
+export interface Playlist {
+    id: number
+    name: string
+    created_at: string
+}
+
+export interface PlaylistsResponse {
+    playlists: Playlist[]
+    count: number
+}

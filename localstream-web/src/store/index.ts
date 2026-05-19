@@ -4,7 +4,7 @@ import type { Artist, Album, Track } from '../types'
 // Estado de navegación
 export const currentArtist  = signal<Artist | null>(null)
 export const currentAlbum   = signal<Album | null>(null)
-export const currentView    = signal<'home' | 'albums' | 'tracks' | 'search'>('home')
+export const currentView = signal<'home' | 'albums' | 'tracks' | 'search' | 'playlist'>('home')
 export const searchQuery    = signal('')
 
 // Estado del player

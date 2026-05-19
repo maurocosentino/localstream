@@ -4,6 +4,8 @@ import { ViewHome }   from './components/ViewHome'
 import { ViewAlbums } from './components/ViewAlbums'
 import { ViewTracks } from './components/ViewTracks'
 import { ViewSearch } from './components/ViewSearch'
+import { ViewPlaylist } from './components/ViewPlaylist'
+import { ContextMenu } from './components/ContextMenu'
 
 export function App() {
     return (
@@ -14,6 +16,8 @@ export function App() {
                 <ViewAlbums />
                 <ViewTracks />
                 <ViewSearch />
+                <ViewPlaylist />
+                <ContextMenu />
             </main>
             <Player />
         </>

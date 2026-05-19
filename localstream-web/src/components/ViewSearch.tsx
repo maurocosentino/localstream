@@ -4,6 +4,7 @@ import type { Track } from '../types'
 import { currentView, currentTracks, currentIdx, searchQuery } from '../store'
 import { playTrack } from './Player'
 import { effect } from '@preact/signals'
+import { showContextMenu } from './ContextMenu'
 
 const searchResults = signal<Track[]>([])
 const resultCount   = signal(0)
@@ -48,7 +49,7 @@ export function ViewSearch() {
                     {searchResults.value.map((track, i) => (
                         <div
                             key={track.id}
-                            class={`track-row ${idx === i ? 'active' : ''}`}
+                            onContextMenu={(e) => showContextMenu(e, track.id)}
                             onClick={() => playTrack(i)}
                         >
                             <div>

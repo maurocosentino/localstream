@@ -60,6 +60,25 @@ void Database::createTables()
             FOREIGN KEY (album_id)  REFERENCES albums(id)
         );
     )");
+
+    db_.exec(R"(
+        CREATE TABLE IF NOT EXISTS playlists (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    )");
+
+    db_.exec(R"(
+        CREATE TABLE IF NOT EXISTS playlist_tracks (
+            playlist_id INTEGER NOT NULL,
+            track_id    INTEGER NOT NULL,
+            position    INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (playlist_id, track_id),
+            FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+            FOREIGN KEY (track_id)    REFERENCES tracks(id)
+        );
+    )");
 }
 
 int Database::insertArtist(const std::string& name)
@@ -502,5 +521,101 @@ std::optional<localstream::CoverData> Database::getAlbumCover(int album_id)
     } catch (...) {}
 
     return cd;
+}
+
+std::vector<Playlist> Database::getPlaylists()
+{
+    std::vector<Playlist> playlists;
+    SQLite::Statement query(db_,
+        "SELECT id, name, created_at FROM playlists ORDER BY created_at DESC");
+
+    while (query.executeStep()) {
+        Playlist p;
+        p.id         = query.getColumn(0).getInt();
+        p.name       = query.getColumn(1).getString();
+        p.created_at = query.getColumn(2).getString();
+        playlists.push_back(p);
+    }
+    return playlists;
+}
+
+int Database::createPlaylist(const std::string& name)
+{
+    SQLite::Statement insert(db_,
+        "INSERT INTO playlists (name) VALUES (?)");
+    insert.bind(1, name);
+    insert.exec();
+    return static_cast<int>(db_.getLastInsertRowid());
+}
+
+bool Database::deletePlaylist(int playlist_id)
+{
+    SQLite::Statement stmt(db_,
+        "DELETE FROM playlists WHERE id = ?");
+    stmt.bind(1, playlist_id);
+    stmt.exec();
+    return db_.getChanges() > 0;
+}
+
+bool Database::addTrackToPlaylist(int playlist_id, int track_id)
+{
+    // Calculamos la siguiente posición
+    SQLite::Statement pos(db_,
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_tracks WHERE playlist_id = ?");
+    pos.bind(1, playlist_id);
+    pos.executeStep();
+    int next_pos = pos.getColumn(0).getInt();
+
+    SQLite::Statement insert(db_, R"(
+        INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id, position)
+        VALUES (?, ?, ?)
+    )");
+    insert.bind(1, playlist_id);
+    insert.bind(2, track_id);
+    insert.bind(3, next_pos);
+    insert.exec();
+    return db_.getChanges() > 0;
+}
+
+bool Database::removeTrackFromPlaylist(int playlist_id, int track_id)
+{
+    SQLite::Statement stmt(db_, R"(
+        DELETE FROM playlist_tracks
+        WHERE playlist_id = ? AND track_id = ?
+    )");
+    stmt.bind(1, playlist_id);
+    stmt.bind(2, track_id);
+    stmt.exec();
+    return db_.getChanges() > 0;
+}
+
+std::vector<Track> Database::getPlaylistTracks(int playlist_id)
+{
+    std::vector<Track> tracks;
+
+    SQLite::Statement query(db_, R"(
+        SELECT t.id, t.title, t.artist_id, t.album_id,
+               t.file_path, t.duration_s, t.track_number, t.file_size, t.format
+        FROM tracks t
+        JOIN playlist_tracks pt ON t.id = pt.track_id
+        WHERE pt.playlist_id = ?
+        ORDER BY pt.position
+    )");
+    query.bind(1, playlist_id);
+
+    while (query.executeStep()) {
+        Track track;
+        track.id           = query.getColumn(0).getInt();
+        track.title        = query.getColumn(1).getString();
+        track.artist_id    = query.getColumn(2).getInt();
+        track.album_id     = query.getColumn(3).getInt();
+        track.file_path    = query.getColumn(4).getString();
+        track.duration_s   = query.getColumn(5).getInt();
+        track.track_number = query.getColumn(6).getInt();
+        track.file_size    = query.getColumn(7).getInt();
+        track.format       = query.getColumn(8).getString();
+        tracks.push_back(track);
+    }
+    return tracks;
 }
 } // namespace localstream

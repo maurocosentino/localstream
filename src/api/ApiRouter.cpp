@@ -40,6 +40,15 @@ crow::json::wvalue ApiRouter::trackToJson(const Track& track)
     return json;
 }
 
+crow::json::wvalue ApiRouter::playlistToJson(const Playlist& playlist)
+{
+    crow::json::wvalue json;
+    json["id"]         = playlist.id;
+    json["name"]       = playlist.name;
+    json["created_at"] = playlist.created_at;
+    return json;
+}
+
 void ApiRouter::setupRoutes()
 {
     // Health check
@@ -192,6 +201,99 @@ void ApiRouter::setupRoutes()
         json["count"]  = static_cast<int>(tracks.size());
         json["query"]  = query;
 
+        return crow::response(200, json);
+    });
+    // GET /api/playlists
+    CROW_ROUTE(app_, "/api/playlists")
+    ([this]{
+        auto playlists = db_.getPlaylists();
+
+        crow::json::wvalue json;
+        crow::json::wvalue::list list;
+        for (const auto& p : playlists) {
+            list.push_back(playlistToJson(p));
+        }
+        json["playlists"] = std::move(list);
+        json["count"]     = static_cast<int>(playlists.size());
+        return crow::response(200, json);
+    });
+
+    // POST /api/playlists
+    CROW_ROUTE(app_, "/api/playlists").methods(crow::HTTPMethod::Post)
+    ([this](const crow::request& req){
+        auto body = crow::json::load(req.body);
+        if (!body || !body.has("name")) {
+            crow::json::wvalue json;
+            json["error"] = "Campo 'name' requerido";
+            return crow::response(400, json);
+        }
+
+        std::string name = body["name"].s();
+        if (name.empty()) {
+            crow::json::wvalue json;
+            json["error"] = "El nombre no puede estar vacío";
+            return crow::response(400, json);
+        }
+
+        int id = db_.createPlaylist(name);
+        crow::json::wvalue json;
+        json["id"]   = id;
+        json["name"] = name;
+        return crow::response(201, json);
+    });
+
+    // DELETE /api/playlists/:id
+    CROW_ROUTE(app_, "/api/playlists/<int>").methods(crow::HTTPMethod::Delete)
+    ([this](int playlist_id){
+        bool deleted = db_.deletePlaylist(playlist_id);
+        crow::json::wvalue json;
+        if (deleted) {
+            json["status"] = "ok";
+            return crow::response(200, json);
+        }
+        json["error"] = "Playlist no encontrada";
+        return crow::response(404, json);
+    });
+
+    // GET /api/playlists/:id/tracks
+    CROW_ROUTE(app_, "/api/playlists/<int>/tracks")
+    ([this](int playlist_id){
+        auto tracks = db_.getPlaylistTracks(playlist_id);
+
+        crow::json::wvalue json;
+        crow::json::wvalue::list list;
+        for (const auto& track : tracks) {
+            list.push_back(trackToJson(track));
+        }
+        json["tracks"] = std::move(list);
+        json["count"]  = static_cast<int>(tracks.size());
+        return crow::response(200, json);
+    });
+
+    // POST /api/playlists/:id/tracks
+    CROW_ROUTE(app_, "/api/playlists/<int>/tracks").methods(crow::HTTPMethod::Post)
+    ([this](const crow::request& req, int playlist_id){
+        auto body = crow::json::load(req.body);
+        if (!body || !body.has("track_id")) {
+            crow::json::wvalue json;
+            json["error"] = "Campo 'track_id' requerido";
+            return crow::response(400, json);
+        }
+
+        int track_id = body["track_id"].i();
+        bool added   = db_.addTrackToPlaylist(playlist_id, track_id);
+
+        crow::json::wvalue json;
+        json["status"] = added ? "ok" : "already_exists";
+        return crow::response(200, json);
+    });
+
+    // DELETE /api/playlists/:id/tracks/:track_id
+    CROW_ROUTE(app_, "/api/playlists/<int>/tracks/<int>").methods(crow::HTTPMethod::Delete)
+    ([this](int playlist_id, int track_id){
+        bool removed = db_.removeTrackFromPlaylist(playlist_id, track_id);
+        crow::json::wvalue json;
+        json["status"] = removed ? "ok" : "not_found";
         return crow::response(200, json);
     });
 }
