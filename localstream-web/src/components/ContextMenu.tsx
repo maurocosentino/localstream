@@ -1,7 +1,6 @@
 import { signal } from '@preact/signals'
 import { api } from '../api'
 import type { Playlist } from '../types'
-import { reloadPlaylists } from './Sidebar'
 
 interface ContextMenuState {
     visible: boolean
