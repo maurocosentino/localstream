@@ -35,6 +35,14 @@ public:
     // Portadas
     std::optional<CoverData> getAlbumCover(int album_id);
 
+    // Playlists
+    std::vector<Playlist> getPlaylists();
+    int                   createPlaylist(const std::string& name);
+    bool                  deletePlaylist(int playlist_id);
+    bool                  addTrackToPlaylist(int playlist_id, int track_id);
+    bool                  removeTrackFromPlaylist(int playlist_id, int track_id);
+    std::vector<Track>    getPlaylistTracks(int playlist_id);
+
 private:
     SQLite::Database db_;
 

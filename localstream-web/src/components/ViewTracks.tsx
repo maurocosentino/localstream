@@ -1,6 +1,7 @@
 import { api } from '../api'
 import { currentArtist, currentAlbum, currentView, currentTracks, currentIdx } from '../store'
 import { playTrack } from './Player'
+import { showContextMenu } from './ContextMenu'
 
 function fmtTime(s: number) {
     s = Math.floor(s || 0)
@@ -79,6 +80,7 @@ export function ViewTracks() {
                         <div
                             key={track.id}
                             class={`track-row ${idx === i ? 'active' : ''}`}
+                            onContextMenu={(e) => showContextMenu(e, track.id)}
                             onClick={() => playTrack(i)}
                         >
                             <div>

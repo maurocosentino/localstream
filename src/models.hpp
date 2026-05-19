@@ -41,4 +41,16 @@ struct TrackMetadata {
     std::string format;
 };
 
+struct Playlist {
+    int         id;
+    std::string name;
+    std::string created_at;
+};
+
+struct PlaylistTrack {
+    int playlist_id;
+    int track_id;
+    int position;
+};
+
 } // namespace localstream

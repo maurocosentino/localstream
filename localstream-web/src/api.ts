@@ -23,4 +23,31 @@ export const api = {
 
     coverUrl: (albumId: number): string =>
         `${BASE}/api/albums/${albumId}/cover`,
+    getPlaylists: (): Promise<PlaylistsResponse> =>
+    fetch(`${BASE}/api/playlists`).then(r => r.json()),
+
+createPlaylist: (name: string): Promise<Playlist> =>
+    fetch(`${BASE}/api/playlists`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+    }).then(r => r.json()),
+
+deletePlaylist: (id: number): Promise<void> =>
+    fetch(`${BASE}/api/playlists/${id}`, { method: 'DELETE' }).then(r => r.json()),
+
+getPlaylistTracks: (id: number): Promise<TracksResponse> =>
+    fetch(`${BASE}/api/playlists/${id}/tracks`).then(r => r.json()),
+
+addTrackToPlaylist: (playlist_id: number, track_id: number): Promise<void> =>
+    fetch(`${BASE}/api/playlists/${playlist_id}/tracks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ track_id })
+    }).then(r => r.json()),
+
+removeTrackFromPlaylist: (playlist_id: number, track_id: number): Promise<void> =>
+    fetch(`${BASE}/api/playlists/${playlist_id}/tracks/${track_id}`, {
+        method: 'DELETE'
+    }).then(r => r.json()),
 }

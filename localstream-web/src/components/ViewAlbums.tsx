@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals'
 import { api } from '../api'
 import type { Album } from '../types'
-import { currentArtist, currentAlbum, currentView, currentTracks } from '../store'
+import { currentArtist, currentAlbum, currentView, currentTracks, currentIdx } from '../store'
 import { playTrack } from './Player'
 
 const albums = signal<Album[]>([])
@@ -15,8 +15,9 @@ effect(() => {
 })
 
 async function openTracks(album: Album) {
-    currentAlbum.value = album
-    currentView.value  = 'tracks'
+    currentAlbum.value  = album
+    currentView.value   = 'tracks'
+    currentIdx.value    = -1          
     const d = await api.getTracks(album.id)
     currentTracks.value = d.tracks
 }
