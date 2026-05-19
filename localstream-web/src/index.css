@@ -169,6 +169,20 @@ html, body {
 }
 .album-info-artist { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.home-actions {
+    display: flex; gap: 10px; margin-top: 16px;
+}
+
+.btn-shuffle {
+    display: flex; align-items: center; gap: 7px;
+    background: transparent; color: var(--text-1);
+    border: 1px solid var(--border-mid); border-radius: 99px; padding: 9px 20px;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+}
+.btn-shuffle:hover { border-color: var(--text-2); }
+.btn-shuffle svg { width: 14px; height: 14px; stroke: currentColor; }
+
 /* ── ALBUMS VIEW ── */
 .breadcrumb {
     display: flex; align-items: center; gap: 6px;

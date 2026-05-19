@@ -45,14 +45,43 @@ async function playAlbum(album: Album, artist: Artist) {
 }
 
 export function ViewHome() {
+    async function playAll() {
+    const d = await api.getAllTracks(500, 0)
+    currentTracks.value = d.tracks
+    currentAlbum.value  = null
+    playTrack(0)
+}
+
+async function playShuffled() {
+    const d = await api.getAllTracks(500, 0)
+    const shuffled = [...d.tracks].sort(() => Math.random() - 0.5)
+    currentTracks.value = shuffled
+    currentAlbum.value  = null
+    playTrack(0)
+}
     return (
         <div id="view-home" class={currentView.value === 'home' ? 'active' : ''}>
-            <div class="home-hero">
-                <div class="home-greeting">Escuchar ahora</div>
-                <div class="home-sub">
-                    Tu biblioteca local · <span>{homeStats.value}</span>
-                </div>
-            </div>
+           <div class="home-hero">
+    <div class="home-greeting">Escuchar ahora</div>
+    <div class="home-sub">
+        Tu biblioteca local · <span>{homeStats.value}</span>
+    </div>
+    <div class="home-actions">
+        <button class="btn-play-all" onClick={playAll}>
+            <svg viewBox="0 0 16 16"><polygon points="3,2 14,8 3,14"/></svg>
+            Reproducir todo
+        </button>
+        <button class="btn-shuffle" onClick={playShuffled}>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"/>
+                <line x1="4" y1="20" x2="21" y2="3"/>
+                <polyline points="21 16 21 21 16 21"/>
+                <line x1="15" y1="15" x2="21" y2="21"/>
+            </svg>
+            Aleatorio
+        </button>
+    </div>
+</div>
             <div class="section-header">
                 <div class="section-title">Álbumes</div>
             </div>
