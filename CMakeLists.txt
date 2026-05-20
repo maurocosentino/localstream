@@ -9,6 +9,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 pkg_check_modules(TAGLIB REQUIRED taglib)
 
+find_program(FFMPEG_EXECUTABLE ffmpeg REQUIRED)
+message(STATUS "FFmpeg found: ${FFMPEG_EXECUTABLE}")
+
 include(FetchContent)
 # Asio standalone (requerido por Crow)
 FetchContent_Declare(
@@ -51,9 +54,11 @@ add_executable(localstream
     src/scanner/FileScanner.cpp
     src/scanner/LibraryScanner.cpp
     src/metadata/MetadataReader.cpp
+    src/streaming/StreamHandler.cpp
+    src/streaming/Transcoder.cpp
     src/api/ApiRouter.cpp
     src/api/WebHandler.cpp
-    src/streaming/StreamHandler.cpp
+    src/api/SubsonicRouter.cpp
 )
 target_include_directories(localstream PRIVATE
     src/

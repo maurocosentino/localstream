@@ -25,7 +25,15 @@ std::optional<TrackMetadata> MetadataReader::read(const std::string& file_path)
     TrackMetadata metadata;
     metadata.file_path    = file_path;
     metadata.title        = tag->title().toCString(true);
-    metadata.artist_name  = tag->artist().toCString(true);
+   std::string full_artist = tag->artist().toCString(true);
+// Tomamos solo el primer artista antes de la coma
+    auto comma = full_artist.find(',');
+    metadata.artist_name = (comma != std::string::npos)
+    ? full_artist.substr(0, comma)
+    : full_artist;
+// Trim de espacios al final
+    while (!metadata.artist_name.empty() && metadata.artist_name.back() == ' ')
+    metadata.artist_name.pop_back();
     metadata.album_title  = tag->album().toCString(true);
     metadata.year         = static_cast<int>(tag->year());
     metadata.track_number = static_cast<int>(tag->track());
@@ -35,7 +43,14 @@ std::optional<TrackMetadata> MetadataReader::read(const std::string& file_path)
     // 3. Formato según extensión
     std::string ext = fs::path(file_path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    metadata.format = (ext == ".mp3") ? "mp3" : "flac";
+   
+    if      (ext == ".mp3")              metadata.format = "mp3";
+    else if (ext == ".flac")             metadata.format = "flac";
+    else if (ext == ".ogg")              metadata.format = "ogg";
+    else if (ext == ".opus")             metadata.format = "opus";
+    else if (ext == ".m4a" || ext == ".aac") metadata.format = "aac";
+    else if (ext == ".wav")              metadata.format = "wav";
+    else                                 metadata.format = ext.substr(1);
 
     // 4. Fallbacks para metadata faltante
     if (metadata.title.empty())

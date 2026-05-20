@@ -3,18 +3,18 @@
 #include "crow.h"
 #include "db/Database.hpp"
 #include "scanner/LibraryScanner.hpp"
-#include <string>
+#include "api/AuthMiddleware.hpp"
 
 namespace localstream {
 
 class ApiRouter {
 public:
-    ApiRouter(Database& db, crow::SimpleApp& app, LibraryScanner& library_scanner);
+    ApiRouter(Database& db, crow::App<AuthMiddleware>& app, LibraryScanner& library_scanner);
 
 private:
-    Database&        db_;
-    crow::SimpleApp& app_;
-    LibraryScanner&  library_scanner_;
+    Database&                  db_;
+    crow::App<AuthMiddleware>& app_;
+    LibraryScanner&            library_scanner_;
 
     void setupRoutes();
 

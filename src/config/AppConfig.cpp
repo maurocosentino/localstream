@@ -31,6 +31,7 @@ AppConfig AppConfig::load(const std::string& config_path)
     config.server_port = json_data.at("server").at("port").get<int>();
     config.db_path     = json_data.at("database").at("path").get<std::string>();
     config.log_level = json_data.value("log_level", "INFO");
+    config.api_key = json_data.value("api_key", "");
 
     for (const auto& dir : json_data.at("media_directories")) {
         config.media_directories.push_back(dir.get<std::string>());

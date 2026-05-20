@@ -24,7 +24,10 @@ public:
 
     // Consultas
     std::vector<Artist>  getArtists();
+    std::optional<Artist> getArtistById(int artist_id);
     std::vector<Album>   getAlbums(int artist_id);
+    std::optional<Album> getAlbumById(int album_id);
+    std::vector<Album> getAlbumList(const std::string& type, int size, int offset);
     std::vector<Track>   getTracks(int album_id);
     std::vector<Track>   getAllTracks(int limit, int offset);
     int                  getTracksCount();

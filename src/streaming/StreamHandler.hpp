@@ -2,6 +2,8 @@
 
 #include "crow.h"
 #include "db/Database.hpp"
+#include "api/AuthMiddleware.hpp"
+#include <optional>
 
 namespace localstream {
 
@@ -13,22 +15,19 @@ struct RangeRequest {
 
 class StreamHandler {
 public:
-    StreamHandler(Database& db, crow::SimpleApp& app);
+    StreamHandler(Database& db, crow::App<AuthMiddleware>& app);
 
 private:
-    Database&        db_;
-    crow::SimpleApp& app_;
+    Database&                  db_;
+    crow::App<AuthMiddleware>& app_;
 
     void setupRoutes();
 
-    // Parsea el header "Range: bytes=X-Y"
-    // Retorna nullopt si no hay Range header (pedido completo)
     std::optional<RangeRequest> parseRangeHeader(
         const std::string& range_header,
         long long file_size
     );
 
-    // Determina el MIME type según el formato
     std::string getMimeType(const std::string& format);
 };
 
