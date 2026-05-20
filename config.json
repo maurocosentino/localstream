@@ -2,6 +2,8 @@
     "server": { "port": 8080 },
     "database": { "path": "localstream.db" },
     "log_level": "INFO",
-    "api_key": "mmADFT63!87ere?sdgY5663H",
-    "media_directories": ["/home/mauro/Música"]
+    "api_key": "change-this-to-a-secret-key",
+    "media_directories": [
+        "/path/to/your/music"
+    ]
 }
