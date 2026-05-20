@@ -1,16 +1,17 @@
 #include "db/Database.hpp"
 #include <stdexcept>
-  #include <taglib/fileref.h>
-  #include <taglib/tag.h>
-  #include <taglib/id3v2tag.h>
-  #include <taglib/mpegfile.h>
-  #include <taglib/flacfile.h>
-  #include <taglib/attachedpictureframe.h>
-  #include <taglib/mp4file.h>
-  #include <taglib/mp4tag.h>
-  #include <taglib/mp4coverart.h>
-  #include <taglib/vorbisfile.h>
-  #include <taglib/opusfile.h>
+#include <filesystem>
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
+#include <taglib/id3v2tag.h>
+#include <taglib/mpegfile.h>
+#include <taglib/flacfile.h>
+#include <taglib/attachedpictureframe.h>
+#include <taglib/mp4file.h>
+#include <taglib/mp4tag.h>
+#include <taglib/mp4coverart.h>
+#include <taglib/vorbisfile.h>
+#include <taglib/opusfile.h>
 
 namespace localstream {
 
@@ -688,4 +689,50 @@ std::vector<Track> Database::getPlaylistTracks(int playlist_id)
     }
     return tracks;
 }
+
+int Database::removeNonExistentTracks()
+{
+    // Traemos todos los file_paths de la DB
+    SQLite::Statement query(db_, "SELECT id, file_path FROM tracks");
+
+    std::vector<int> to_delete;
+    while (query.executeStep()) {
+        int         id   = query.getColumn(0).getInt();
+        std::string path = query.getColumn(1).getString();
+
+        if (!std::filesystem::exists(path)) {
+            to_delete.push_back(id);
+        }
+    }
+
+    // Eliminamos los que no existen
+    for (int id : to_delete) {
+        SQLite::Statement del(db_, "DELETE FROM tracks WHERE id = ?");
+        del.bind(1, id);
+        del.exec();
+    }
+
+    return static_cast<int>(to_delete.size());
+}
+
+int Database::removeEmptyAlbums()
+{
+    SQLite::Statement stmt(db_, R"(
+        DELETE FROM albums
+        WHERE id NOT IN (SELECT DISTINCT album_id FROM tracks)
+    )");
+    stmt.exec();
+    return db_.getChanges();
+}
+
+int Database::removeEmptyArtists()
+{
+    SQLite::Statement stmt(db_, R"(
+        DELETE FROM artists
+        WHERE id NOT IN (SELECT DISTINCT artist_id FROM tracks)
+    )");
+    stmt.exec();
+    return db_.getChanges();
+}
+
 } // namespace localstream

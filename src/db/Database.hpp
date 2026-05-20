@@ -22,6 +22,11 @@ public:
     int insertAlbum(const std::string& title, int artist_id, int year);
     int insertTrack(const Track& track, bool& inserted);
 
+    // Limpieza de biblioteca
+    int  removeNonExistentTracks();
+    int  removeEmptyAlbums();
+    int  removeEmptyArtists();
+
     // Consultas
     std::vector<Artist>  getArtists();
     std::optional<Artist> getArtistById(int artist_id);

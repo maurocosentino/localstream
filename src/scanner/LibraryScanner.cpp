@@ -85,6 +85,18 @@ int LibraryScanner::runScan()
         }
     }
 
+    // Limpieza — eliminar tracks, álbumes y artistas que ya no existen
+    int removed_tracks  = db_.removeNonExistentTracks();
+    int removed_albums  = db_.removeEmptyAlbums();
+    int removed_artists = db_.removeEmptyArtists();
+
+    if (removed_tracks > 0)
+        LOG_INFO("Scanner", "Tracks eliminados: " + std::to_string(removed_tracks));
+    if (removed_albums > 0)
+        LOG_INFO("Scanner", "Albums eliminados: " + std::to_string(removed_albums));
+    if (removed_artists > 0)
+        LOG_INFO("Scanner", "Artistas eliminados: " + std::to_string(removed_artists));
+
     LOG_INFO("Scanner", "Scan completado. Tracks nuevos: " + std::to_string(new_tracks));
     return new_tracks;
 }
