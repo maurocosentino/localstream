@@ -25,7 +25,15 @@ std::optional<TrackMetadata> MetadataReader::read(const std::string& file_path)
     TrackMetadata metadata;
     metadata.file_path    = file_path;
     metadata.title        = tag->title().toCString(true);
-    metadata.artist_name  = tag->artist().toCString(true);
+   std::string full_artist = tag->artist().toCString(true);
+// Tomamos solo el primer artista antes de la coma
+    auto comma = full_artist.find(',');
+    metadata.artist_name = (comma != std::string::npos)
+    ? full_artist.substr(0, comma)
+    : full_artist;
+// Trim de espacios al final
+    while (!metadata.artist_name.empty() && metadata.artist_name.back() == ' ')
+    metadata.artist_name.pop_back();
     metadata.album_title  = tag->album().toCString(true);
     metadata.year         = static_cast<int>(tag->year());
     metadata.track_number = static_cast<int>(tag->track());
