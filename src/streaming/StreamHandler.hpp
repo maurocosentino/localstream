@@ -2,6 +2,7 @@
 
 #include "crow.h"
 #include "db/Database.hpp"
+#include "api/AuthMiddleware.hpp"
 #include <optional>
 
 namespace localstream {
@@ -12,18 +13,13 @@ struct RangeRequest {
     long long total;
 };
 
-template<typename App>
 class StreamHandler {
 public:
-    StreamHandler(Database& db, App& app)
-        : db_(db), app_(app)
-    {
-        setupRoutes();
-    }
+    StreamHandler(Database& db, crow::App<AuthMiddleware>& app);
 
 private:
-    Database& db_;
-    App&      app_;
+    Database&                  db_;
+    crow::App<AuthMiddleware>& app_;
 
     void setupRoutes();
 
@@ -36,5 +32,3 @@ private:
 };
 
 } // namespace localstream
-
-#include "streaming/StreamHandler.ipp"
