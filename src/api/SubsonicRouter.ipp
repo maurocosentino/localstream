@@ -1,5 +1,5 @@
 #pragma once
-
+#include "streaming/Transcoder.hpp"
 namespace localstream {
 
 // Wrapper estándar de respuesta Subsonic
@@ -239,48 +239,48 @@ void SubsonicRouter<App>::setupRoutes()
     // ── stream ───────────────────────────────────────────────────────────────
     // Las apps piden audio por acá — redirigimos a nuestro /stream/:id
     CROW_ROUTE(app_, "/rest/stream")
-    ([this](const crow::request& req, crow::response& res){
-        auto id_param = req.url_params.get("id");
-        if (!id_param) {
-            res.code = 400;
-            res.end();
-            return;
-        }
-        // Redirect interno — devolvemos el audio directo
-        int track_id = std::stoi(id_param);
-        std::string file_path = db_.getTrackPath(track_id);
-        if (file_path.empty()) { res.code = 404; res.end(); return; }
+([this](const crow::request& req, crow::response& res){
+    auto id_param = req.url_params.get("id");
+    if (!id_param) { res.code = 400; res.end(); return; }
 
-        auto track = db_.getTrackById(track_id);
-        if (!track)            { res.code = 404; res.end(); return; }
+    int  track_id = std::stoi(id_param);
+    auto track    = db_.getTrackById(track_id);
+    if (!track) { res.code = 404; res.end(); return; }
 
-        std::ifstream file(file_path, std::ios::binary);
-        if (!file.is_open())   { res.code = 500; res.end(); return; }
+    // Parámetros opcionales de transcoding que mandan las apps
+    int max_bitrate = 0;
+    auto bitrate_param = req.url_params.get("maxBitRate");
+    if (bitrate_param) max_bitrate = std::stoi(bitrate_param);
 
-        auto mimeFor = [](const std::string& fmt) -> std::string {
-            if (fmt == "mp3")  return "audio/mpeg";
-            if (fmt == "flac") return "audio/flac";
-            if (fmt == "ogg")  return "audio/ogg";
-            if (fmt == "opus") return "audio/ogg; codecs=opus";
-            if (fmt == "aac")  return "audio/aac";
-            return "application/octet-stream";
-        };
+    // Formato destino — si no piden nada usamos el original
+    std::string dst_format = track->format;
+    auto format_param = req.url_params.get("format");
+    if (format_param && std::string(format_param) != "raw")
+        dst_format = std::string(format_param);
+
+    bool should_transcode = Transcoder::needsTranscode(
+        track->format, dst_format, 0, max_bitrate);
+
+    res.set_header("Accept-Ranges",  "bytes");
+    res.set_header("Cache-Control",  "no-cache");
+
+    if (!should_transcode) {
+        // Servir directo con Range support
+        std::ifstream file(track->file_path, std::ios::binary);
+        if (!file.is_open()) { res.code = 500; res.end(); return; }
+
+        long long file_size = track->file_size;
+        res.set_header("Content-Type",   Transcoder::mimeType(track->format));
+        res.set_header("Content-Length", std::to_string(file_size));
 
         std::string range_header = req.get_header_value("Range");
-        long long   file_size    = track->file_size;
-
-        res.set_header("Content-Type",  mimeFor(track->format));
-        res.set_header("Accept-Ranges", "bytes");
-
-        if (!range_header.empty() &&
-            range_header.substr(0, 6) == "bytes=")
-        {
+        if (!range_header.empty() && range_header.substr(0, 6) == "bytes=") {
             std::string range = range_header.substr(6);
-            auto dash = range.find('-');
-            long long start = std::stoll(range.substr(0, dash));
-            long long end   = (dash + 1 < range.size() && range[dash+1] != '\0')
-                              ? std::stoll(range.substr(dash + 1))
-                              : file_size - 1;
+            auto dash  = range.find('-');
+            long long start  = std::stoll(range.substr(0, dash));
+            long long end    = (dash + 1 < range.size())
+                               ? std::stoll(range.substr(dash + 1))
+                               : file_size - 1;
             long long length = end - start + 1;
 
             file.seekg(start);
@@ -296,7 +296,6 @@ void SubsonicRouter<App>::setupRoutes()
             res.write(buf);
         } else {
             res.code = 200;
-            res.set_header("Content-Length", std::to_string(file_size));
             constexpr std::size_t CHUNK = 65536;
             std::vector<char> buf(CHUNK);
             while (file) {
@@ -306,8 +305,31 @@ void SubsonicRouter<App>::setupRoutes()
             }
         }
         res.end();
+        return;
+    }
+
+    // Transcodificar con FFmpeg
+    TranscodeRequest tc_req;
+    tc_req.file_path    = track->file_path;
+    tc_req.format       = dst_format;
+    tc_req.bitrate_kbps = max_bitrate;
+
+    res.code = 200;
+    res.set_header("Content-Type", Transcoder::mimeType(dst_format));
+    // Sin Content-Length — no sabemos el tamaño final del stream
+
+    Transcoder transcoder;
+    bool ok = transcoder.transcode(tc_req, [&res](const char* data, std::size_t n) {
+        res.write(std::string(data, n));
     });
 
+    if (!ok) {
+        res.code = 500;
+        res.write("Transcoding failed");
+    }
+
+    res.end();
+});
     // ── getCoverArt ──────────────────────────────────────────────────────────
     // Las apps piden covers con id "al-123"
     CROW_ROUTE(app_, "/rest/getCoverArt")
