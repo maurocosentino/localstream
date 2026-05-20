@@ -8,6 +8,8 @@
 #include "api/WebHandler.hpp"
 #include <filesystem>
 #include "api/AuthMiddleware.hpp"
+#include "api/SubsonicRouter.hpp"
+
 
 int main()
 {
@@ -43,6 +45,7 @@ int main()
 
         // crow::SimpleApp app;
         localstream::ApiRouter     router(db, app, library_scanner);
+        localstream::SubsonicRouter subsonic(db, app, config.api_key);
         localstream::StreamHandler streamer(db, app);
         localstream::WebHandler    web(db, app, static_dir);
 

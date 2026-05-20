@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+#include <cctype>
 #include <fstream>
 #include <vector>
 

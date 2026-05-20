@@ -10,11 +10,13 @@ struct AuthMiddleware : crow::ILocalMiddleware {
 
     void before_handle(crow::request& req, crow::response& res, context&)
     {
+        
         // Rutas públicas que no necesitan auth
         if (req.url == "/health" || req.url == "/") {
             return;
         }
 
+        if (req.url.rfind("/rest/", 0) == 0) return;
         // Assets del frontend tampoco
         if (req.url.rfind("/assets/", 0) == 0) {
             return;

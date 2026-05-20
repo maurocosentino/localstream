@@ -1,4 +1,3 @@
-// src/api/ApiRouter.ipp
 #pragma once
 
 namespace localstream {
