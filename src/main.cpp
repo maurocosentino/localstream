@@ -7,6 +7,7 @@
 #include "logger/Logger.hpp"
 #include "api/WebHandler.hpp"
 #include <filesystem>
+#include "api/AuthMiddleware.hpp"
 
 int main()
 {
@@ -37,13 +38,16 @@ int main()
             static_dir = "";
         }
 
-        crow::SimpleApp app;
+        crow::App<localstream::AuthMiddleware> app;
+        app.get_middleware<localstream::AuthMiddleware>().set_key(config.api_key);
+
+        // crow::SimpleApp app;
         localstream::ApiRouter     router(db, app, library_scanner);
         localstream::StreamHandler streamer(db, app);
-        localstream::WebHandler web(db, app, static_dir);
+        localstream::WebHandler    web(db, app, static_dir);
 
         LOG_INFO("Main", "Servidor escuchando en puerto " + std::to_string(config.server_port));
-        app.loglevel(crow::LogLevel::Warning);
+         app.loglevel(crow::LogLevel::Warning);
         app.port(config.server_port).multithreaded().run();
 
     } catch (const std::exception& e) {

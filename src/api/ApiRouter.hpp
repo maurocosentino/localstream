@@ -3,17 +3,21 @@
 #include "crow.h"
 #include "db/Database.hpp"
 #include "scanner/LibraryScanner.hpp"
-#include <string>
 
 namespace localstream {
 
+template<typename App>
 class ApiRouter {
 public:
-    ApiRouter(Database& db, crow::SimpleApp& app, LibraryScanner& library_scanner);
+    ApiRouter(Database& db, App& app, LibraryScanner& library_scanner)
+        : db_(db), app_(app), library_scanner_(library_scanner)
+    {
+        setupRoutes();
+    }
 
 private:
     Database&        db_;
-    crow::SimpleApp& app_;
+    App&             app_;
     LibraryScanner&  library_scanner_;
 
     void setupRoutes();
@@ -25,3 +29,5 @@ private:
 };
 
 } // namespace localstream
+
+#include "api/ApiRouter.ipp"
