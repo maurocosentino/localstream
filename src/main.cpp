@@ -6,6 +6,7 @@
 #include "streaming/StreamHandler.hpp"
 #include "logger/Logger.hpp"
 #include "api/WebHandler.hpp"
+#include <filesystem>
 
 int main()
 {
@@ -30,10 +31,16 @@ int main()
         LOG_INFO("Main", "Escaneando biblioteca...");
         library_scanner.scan();
 
+        std::string static_dir = "../localstream-web/dist";
+        if (!std::filesystem::exists(static_dir)) {
+            LOG_WARN("Main", "Frontend no encontrado en " + static_dir + " — UI deshabilitada");
+            static_dir = "";
+        }
+
         crow::SimpleApp app;
         localstream::ApiRouter     router(db, app, library_scanner);
         localstream::StreamHandler streamer(db, app);
-        localstream::WebHandler web(db, app);
+        localstream::WebHandler web(db, app, static_dir);
 
         LOG_INFO("Main", "Servidor escuchando en puerto " + std::to_string(config.server_port));
         app.loglevel(crow::LogLevel::Warning);

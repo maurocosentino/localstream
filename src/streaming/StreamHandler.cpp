@@ -13,8 +13,12 @@ StreamHandler::StreamHandler(Database& db, crow::SimpleApp& app)
 
 std::string StreamHandler::getMimeType(const std::string& format)
 {
-    if (format == "mp3")  return "audio/mpeg";
-    if (format == "flac") return "audio/flac";
+    if (format == "mp3")         return "audio/mpeg";
+    if (format == "flac")        return "audio/flac";
+    if (format == "ogg")         return "audio/ogg";
+    if (format == "opus")        return "audio/ogg; codecs=opus";
+    if (format == "aac")         return "audio/aac";
+    if (format == "wav")         return "audio/wav";
     return "application/octet-stream";
 }
 
@@ -104,15 +108,18 @@ void StreamHandler::setupRoutes()
         auto range = parseRangeHeader(range_header, file_size);
 
         if (!range) {
-            // Sin Range header — servimos el archivo completo
             res.code = 200;
             res.set_header("Content-Type",   mime);
             res.set_header("Content-Length", std::to_string(file_size));
             res.set_header("Accept-Ranges",  "bytes");
 
-            std::ostringstream buffer;
-            buffer << file.rdbuf();
-            res.write(buffer.str());
+            constexpr std::size_t CHUNK = 65536;
+            std::vector<char> buf(CHUNK);
+            while (file) {
+                file.read(buf.data(), CHUNK);
+                std::streamsize n = file.gcount();
+                if (n > 0) res.write(std::string(buf.data(), n));
+            }
             res.end();
             return;
         }

@@ -43,7 +43,14 @@ std::optional<TrackMetadata> MetadataReader::read(const std::string& file_path)
     // 3. Formato según extensión
     std::string ext = fs::path(file_path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    metadata.format = (ext == ".mp3") ? "mp3" : "flac";
+   
+    if      (ext == ".mp3")              metadata.format = "mp3";
+    else if (ext == ".flac")             metadata.format = "flac";
+    else if (ext == ".ogg")              metadata.format = "ogg";
+    else if (ext == ".opus")             metadata.format = "opus";
+    else if (ext == ".m4a" || ext == ".aac") metadata.format = "aac";
+    else if (ext == ".wav")              metadata.format = "wav";
+    else                                 metadata.format = ext.substr(1);
 
     // 4. Fallbacks para metadata faltante
     if (metadata.title.empty())
