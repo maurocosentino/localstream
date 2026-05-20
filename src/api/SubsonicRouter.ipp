@@ -162,20 +162,10 @@ void SubsonicRouter<App>::setupRoutes()
         if (!id_param) return errorResponse(10, "Missing parameter: id");
 
         int album_id = std::stoi(id_param);
-        auto tracks  = db_.getTracks(album_id);
-        auto albums  = db_.getAlbums(0); // necesitamos buscar el album
+        auto album   = db_.getAlbumById(album_id);
+        if (!album)  return errorResponse(70, "Album not found");
 
-        // Buscar el album — agregamos getAlbumById a la DB después,
-        // por ahora lo reconstruimos desde los tracks
-        if (tracks.empty()) return errorResponse(70, "Album not found");
-
-        int artist_id = tracks[0].artist_id;
-        auto artist_albums = db_.getAlbums(artist_id);
-
-        const Album* found = nullptr;
-        for (const auto& al : artist_albums) {
-            if (al.id == album_id) { found = &al; break; }
-        }
+        auto tracks = db_.getTracks(album_id);
 
         crow::json::wvalue::list track_list;
         for (const auto& track : tracks)
@@ -186,13 +176,14 @@ void SubsonicRouter<App>::setupRoutes()
         root["subsonic-response"]["version"] = "1.16.1";
         root["subsonic-response"]["type"]    = "localstream";
 
-        auto& album_node = root["subsonic-response"]["album"];
-        album_node["id"]         = std::to_string(album_id);
-        album_node["name"]       = found ? found->title : "Unknown";
-        album_node["artistId"]   = std::to_string(artist_id);
-        album_node["songCount"]  = static_cast<int>(tracks.size());
-        album_node["coverArt"]   = "al-" + std::to_string(album_id);
-        album_node["song"]       = std::move(track_list);
+        auto& node = root["subsonic-response"]["album"];
+        node["id"]         = std::to_string(album->id);
+        node["name"]       = album->title;
+        node["artistId"]   = std::to_string(album->artist_id);
+        node["year"]       = album->year;
+        node["songCount"]  = static_cast<int>(tracks.size());
+        node["coverArt"]   = "al-" + std::to_string(album->id);
+        node["song"]       = std::move(track_list);
         return crow::response(200, root);
     });
 
@@ -419,6 +410,79 @@ void SubsonicRouter<App>::setupRoutes()
         pl["entry"]     = std::move(song_list);
         return crow::response(200, root);
     });
+
+    // ── getIndexes ───────────────────────────────────────────────────────────────
+// Versión legacy de getArtists — misma estructura, algunas apps la prefieren
+CROW_ROUTE(app_, "/rest/getIndexes")
+([this](const crow::request&){
+    auto artists = db_.getArtists();
+
+    std::map<std::string, std::vector<crow::json::wvalue>> index_map;
+    for (const auto& artist : artists) {
+        std::string letter = artist.name.empty()
+            ? "#"
+            : std::string(1, std::toupper(artist.name[0]));
+        if (!std::isalpha(letter[0])) letter = "#";
+
+        auto j = artistToSubsonic(artist);
+        auto albums = db_.getAlbums(artist.id);
+        j["albumCount"] = static_cast<int>(albums.size());
+        index_map[letter].push_back(std::move(j));
+    }
+
+    crow::json::wvalue::list index_list;
+    for (auto& [letter, artist_list] : index_map) {
+        crow::json::wvalue idx;
+        idx["name"]   = letter;
+        idx["artist"] = std::move(artist_list);
+        index_list.push_back(std::move(idx));
+    }
+
+    crow::json::wvalue root;
+    root["subsonic-response"]["status"]                       = "ok";
+    root["subsonic-response"]["version"]                      = "1.16.1";
+    root["subsonic-response"]["type"]                         = "localstream";
+    root["subsonic-response"]["indexes"]["ignoredArticles"]   = "The An A Die Das Ein";
+    root["subsonic-response"]["indexes"]["lastModified"]      = 0;
+    root["subsonic-response"]["indexes"]["index"]             = std::move(index_list);
+    return crow::response(200, root);
+});
+
+// ── getAlbumList2 ─────────────────────────────────────────────────────────────
+// Pantalla principal de las apps — soportamos: alphabeticalByName,
+// alphabeticalByArtist, newest, random
+CROW_ROUTE(app_, "/rest/getAlbumList2")
+([this](const crow::request& req){
+    auto type_param   = req.url_params.get("type");
+    auto size_param   = req.url_params.get("size");
+    auto offset_param = req.url_params.get("offset");
+
+    std::string type  = type_param   ? std::string(type_param)   : "alphabeticalByName";
+    int         size  = size_param   ? std::stoi(size_param)      : 10;
+    int         offset = offset_param ? std::stoi(offset_param)   : 0;
+
+    if (size   > 500) size   = 500;
+    if (size   < 1)   size   = 1;
+    if (offset < 0)   offset = 0;
+
+    auto albums = db_.getAlbumList(type, size, offset);
+
+    crow::json::wvalue::list list;
+    for (const auto& album : albums) {
+        auto j = albumToSubsonic(album);
+        // getAlbumList2 necesita el nombre del artista también
+        auto artist = db_.getArtistById(album.artist_id);
+    if (artist) j["artist"] = artist->name;
+        list.push_back(std::move(j));
+    }
+
+    crow::json::wvalue root;
+    root["subsonic-response"]["status"]              = "ok";
+    root["subsonic-response"]["version"]             = "1.16.1";
+    root["subsonic-response"]["type"]                = "localstream";
+    root["subsonic-response"]["albumList2"]["album"] = std::move(list);
+    return crow::response(200, root);
+});
 }
 
 } // namespace localstream

@@ -172,6 +172,20 @@ std::vector<Artist> Database::getArtists()
     return artists;
 }
 
+std::optional<Artist> Database::getArtistById(int artist_id)
+{
+    SQLite::Statement q(db_,
+        "SELECT id, name FROM artists WHERE id = ?");
+    q.bind(1, artist_id);
+    if (!q.executeStep()) return std::nullopt;
+
+    Artist artist;
+    artist.id   = q.getColumn(0).getInt();
+    artist.name = q.getColumn(1).getString();
+    return artist;
+}
+
+
 std::vector<Album> Database::getAlbums(int artist_id)
 {
     std::vector<Album> albums;
@@ -189,6 +203,62 @@ std::vector<Album> Database::getAlbums(int artist_id)
         albums.push_back(album);
     }
 
+    return albums;
+}
+
+std::optional<Album> Database::getAlbumById(int album_id)
+{
+    SQLite::Statement q(db_,
+        "SELECT id, title, artist_id, year FROM albums WHERE id = ?");
+    q.bind(1, album_id);
+
+    if (!q.executeStep()) return std::nullopt;
+
+    Album album;
+    album.id        = q.getColumn(0).getInt();
+    album.title     = q.getColumn(1).getString();
+    album.artist_id = q.getColumn(2).getInt();
+    album.year      = q.getColumn(3).getInt();
+    return album;
+}
+
+std::vector<Album> Database::getAlbumList(
+    const std::string& type, int size, int offset)
+{
+    std::string order;
+
+    if (type == "alphabeticalByName")
+        order = "al.title COLLATE NOCASE ASC";
+    else if (type == "alphabeticalByArtist")
+        order = "ar.name COLLATE NOCASE ASC, al.title COLLATE NOCASE ASC";
+    else if (type == "newest")
+        order = "al.id DESC";
+    else if (type == "random")
+        order = "RANDOM()";
+    else
+        order = "al.title COLLATE NOCASE ASC"; // fallback
+
+    std::string sql = R"(
+        SELECT al.id, al.title, al.artist_id, al.year
+        FROM albums al
+        JOIN artists ar ON al.artist_id = ar.id
+        ORDER BY )" + order + R"(
+        LIMIT ? OFFSET ?
+    )";
+
+    SQLite::Statement q(db_, sql);
+    q.bind(1, size);
+    q.bind(2, offset);
+
+    std::vector<Album> albums;
+    while (q.executeStep()) {
+        Album album;
+        album.id        = q.getColumn(0).getInt();
+        album.title     = q.getColumn(1).getString();
+        album.artist_id = q.getColumn(2).getInt();
+        album.year      = q.getColumn(3).getInt();
+        albums.push_back(album);
+    }
     return albums;
 }
 
