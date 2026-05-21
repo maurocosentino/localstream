@@ -2,8 +2,8 @@
     "server": { "port": 8080 },
     "database": { "path": "localstream.db" },
     "log_level": "INFO",
-    "api_key": "change-this-to-a-secret-key",
+    "api_key": "ABCdef1234!?",
     "media_directories": [
-        "/path/to/your/music"
+        "/home/mauro/Música"
     ]
 }
