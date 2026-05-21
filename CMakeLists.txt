@@ -8,12 +8,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 pkg_check_modules(TAGLIB REQUIRED taglib)
+find_package(OpenSSL REQUIRED)
 
 find_program(FFMPEG_EXECUTABLE ffmpeg REQUIRED)
 message(STATUS "FFmpeg found: ${FFMPEG_EXECUTABLE}")
 
 include(FetchContent)
-# Asio standalone (requerido por Crow)
+
 FetchContent_Declare(
     asio
     GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
@@ -21,7 +22,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(asio)
 
-# Le decimos a Crow que use Asio standalone, no Boost
 set(CROW_FEATURES standalone)
 set(ASIO_INCLUDE_DIR ${asio_SOURCE_DIR}/asio/include)
 
@@ -39,7 +39,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sqlitecpp)
 
-# nlohmann/json (header-only, un solo archivo)
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -60,6 +59,7 @@ add_executable(localstream
     src/api/WebHandler.cpp
     src/api/SubsonicRouter.cpp
 )
+
 target_include_directories(localstream PRIVATE
     src/
     ${SQLITE3_INCLUDE_DIRS}
@@ -72,9 +72,9 @@ target_link_libraries(localstream PRIVATE
     ${SQLITE3_LIBRARIES}
     ${TAGLIB_LIBRARIES}
     nlohmann_json::nlohmann_json
+    OpenSSL::Crypto
 )
 
-# Google Test
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git

@@ -16,6 +16,7 @@ private:
     Database&                  db_;
     crow::App<AuthMiddleware>& app_;
     std::string                api_key_;
+    bool validateAuth(const crow::request& req);
 
     void setupRoutes();
 
