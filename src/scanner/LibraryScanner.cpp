@@ -1,104 +1,99 @@
 #include "scanner/LibraryScanner.hpp"
-#include "logger/Logger.hpp"
+
 #include <sstream>
+
+#include "logger/Logger.hpp"
 
 namespace localstream {
 
-LibraryScanner::LibraryScanner(Database& db, const std::vector<std::string>& directories)
-    : db_(db), directories_(directories), is_scanning_(false)
-{
+LibraryScanner::LibraryScanner(Database& db,
+                               const std::vector<std::string>& directories)
+    : db_(db), directories_(directories), is_scanning_(false) {}
+
+LibraryScanner::~LibraryScanner() {
+  if (scan_thread_.joinable()) {
+    scan_thread_.join();
+  }
 }
 
-LibraryScanner::~LibraryScanner()
-{
-    if (scan_thread_.joinable()) {
-        scan_thread_.join();
-    }
+bool LibraryScanner::isScanning() const { return is_scanning_.load(); }
+
+int LibraryScanner::scan() { return runScan(); }
+
+bool LibraryScanner::scanAsync() {
+  bool expected = false;
+  if (!is_scanning_.compare_exchange_strong(expected, true)) {
+    return false;
+  }
+
+  if (scan_thread_.joinable()) {
+    scan_thread_.join();
+  }
+
+  scan_thread_ = std::thread([this] {
+    runScan();
+    is_scanning_.store(false);
+  });
+
+  return true;
 }
 
-bool LibraryScanner::isScanning() const
-{
-    return is_scanning_.load();
-}
+int LibraryScanner::runScan() {
+  int new_tracks = 0;
 
-int LibraryScanner::scan()
-{
-    return runScan();
-}
+  auto files = scanner_.scan(directories_);
 
-bool LibraryScanner::scanAsync()
-{
-    bool expected = false;
-    if (!is_scanning_.compare_exchange_strong(expected, true)) {
-        return false;
-    }
+  LOG_INFO("Scanner", "Archivos encontrados: " + std::to_string(files.size()));
 
-    if (scan_thread_.joinable()) {
-        scan_thread_.join();
-    }
-
-    scan_thread_ = std::thread([this]{
-        runScan();
-        is_scanning_.store(false);
-    });
-
-    return true;
-}
-
-int LibraryScanner::runScan()
-{
-    int new_tracks = 0;
-
-    auto files = scanner_.scan(directories_);
-
-    LOG_INFO("Scanner", "Archivos encontrados: " + std::to_string(files.size()));
-
-    for (const auto& file_path : files) {
-        auto metadata = reader_.read(file_path);
-        if (!metadata) {
-            LOG_WARN("Scanner", "No se pudo leer metadata: " + file_path);
-            continue;
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(db_mutex_);
-
-            int artist_id = db_.insertArtist(metadata->artist_name);
-            int album_id  = db_.insertAlbum(metadata->album_title, artist_id, metadata->year);
-
-            Track track;
-            track.title        = metadata->title;
-            track.artist_id    = artist_id;
-            track.album_id     = album_id;
-            track.file_path    = metadata->file_path;
-            track.duration_s   = metadata->duration_s;
-            track.track_number = metadata->track_number;
-            track.file_size    = metadata->file_size;
-            track.format       = metadata->format;
-
-            bool inserted = false;
-            db_.insertTrack(track, inserted);
-            if (inserted) {
-                new_tracks++;
-                LOG_DEBUG("Scanner", metadata->artist_name + " — " + metadata->title);
-            }
-        }
+  for (const auto& file_path : files) {
+    auto metadata = reader_.read(file_path);
+    if (!metadata) {
+      LOG_WARN("Scanner", "No se pudo leer metadata: " + file_path);
+      continue;
     }
 
-    // Limpieza — eliminar tracks, álbumes y artistas que ya no existen
-    int removed_tracks  = db_.removeNonExistentTracks();
-    int removed_albums  = db_.removeEmptyAlbums();
-    int removed_artists = db_.removeEmptyArtists();
+    {
+      std::lock_guard<std::mutex> lock(db_mutex_);
 
-    if (removed_tracks > 0)
-        LOG_INFO("Scanner", "Tracks eliminados: " + std::to_string(removed_tracks));
-    if (removed_albums > 0)
-        LOG_INFO("Scanner", "Albums eliminados: " + std::to_string(removed_albums));
-    if (removed_artists > 0)
-        LOG_INFO("Scanner", "Artistas eliminados: " + std::to_string(removed_artists));
+      int artist_id = db_.insertArtist(metadata->artist_name);
+      int album_id =
+          db_.insertAlbum(metadata->album_title, artist_id, metadata->year);
 
-    LOG_INFO("Scanner", "Scan completado. Tracks nuevos: " + std::to_string(new_tracks));
-    return new_tracks;
+      Track track;
+      track.title = metadata->title;
+      track.artist_id = artist_id;
+      track.album_id = album_id;
+      track.file_path = metadata->file_path;
+      track.duration_s = metadata->duration_s;
+      track.track_number = metadata->track_number;
+      track.file_size = metadata->file_size;
+      track.format = metadata->format;
+
+      bool inserted = false;
+      db_.insertTrack(track, inserted);
+      if (inserted) {
+        new_tracks++;
+        LOG_DEBUG("Scanner", metadata->artist_name + " — " + metadata->title);
+      }
+    }
+  }
+
+  // Limpieza — eliminar tracks, álbumes y artistas que ya no existen
+  int removed_tracks = db_.removeNonExistentTracks();
+  int removed_albums = db_.removeEmptyAlbums();
+  int removed_artists = db_.removeEmptyArtists();
+
+  if (removed_tracks > 0)
+    LOG_INFO("Scanner", "Tracks eliminados: " + std::to_string(removed_tracks));
+  if (removed_albums > 0)
+    LOG_INFO("Scanner", "Albums eliminados: " + std::to_string(removed_albums));
+  if (removed_artists > 0)
+    LOG_INFO("Scanner",
+             "Artistas eliminados: " + std::to_string(removed_artists));
+
+  LOG_INFO("Scanner",
+           "Scan completado. Tracks nuevos: " + std::to_string(new_tracks));
+  return new_tracks;
 }
 
-} // namespace localstream
+}  // namespace localstream
