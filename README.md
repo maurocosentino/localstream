@@ -185,7 +185,7 @@ All endpoints except `/health` require the header `X-Api-Key: your-key`.
 
 Compatible endpoints at `/rest/*` — tested with DSub and Symfonium:
 
-`ping` · `getArtists` · `getArtist` · `getAlbumList` · `getAlbumList2` · `getMusicDirectory` · `getSong` · `search3` · `stream` · `getCoverArt` · `getPlaylists` · `getPlaylist` · `getIndexes` · `getLicense` · `getMusicFolders` · `getStarred2` · `getBookmarks` · `getGenres` · `getOpenSubsonicExtensions`
+`ping` · `getArtists` · `getArtist` · `getAlbum` · `getAlbumList` · `getAlbumList2` · `getMusicDirectory` · `getSong` · `search3` · `stream` · `getCoverArt` · `getPlaylists` · `getPlaylist` · `getIndexes` · `getLicense` · `getMusicFolders` · `getStarred2` · `getBookmarks` · `getGenres` · `getOpenSubsonicExtensions`
 
 ## Architecture
 

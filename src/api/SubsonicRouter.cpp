@@ -846,5 +846,46 @@ void SubsonicRouter::setupRoutes() {
 
   CROW_ROUTE(app_, "/rest/getMusicDirectory")(getMusicDirectory_handler);
   CROW_ROUTE(app_, "/rest/getMusicDirectory.view")(getMusicDirectory_handler);
+    // ── getAlbum ──────────────────────────────────────────────────────────────
+  auto getAlbum_handler = [this](const crow::request& req) {
+      auto id_param = req.url_params.get("id");
+      if (!id_param)
+          return errorResponse(10, "Missing parameter: id");
+
+      int album_id = std::stoi(id_param);
+
+      auto album = db_.getAlbumById(album_id);
+      if (!album)
+          return errorResponse(70, "Album not found");
+
+      auto artist = db_.getArtistById(album->artist_id);
+      auto tracks = db_.getTracks(album_id);
+
+      crow::json::wvalue::list song_list;
+      for (const auto& track : tracks)
+          song_list.push_back(trackToSubsonic(track));
+
+      crow::json::wvalue root;
+      root["subsonic-response"]["status"]  = "ok";
+      root["subsonic-response"]["version"] = "1.16.1";
+      root["subsonic-response"]["type"]    = "localstream";
+
+      auto& al = root["subsonic-response"]["album"];
+      al["id"]        = std::to_string(album->id);
+      al["name"]      = album->title;
+      al["title"]     = album->title;
+      al["artistId"]  = std::to_string(album->artist_id);
+      al["songCount"] = static_cast<int>(tracks.size());
+      al["coverArt"]  = "al-" + std::to_string(album->id);
+      if (album->year > 0)
+          al["year"] = album->year;
+      if (artist)
+          al["artist"] = artist->name;
+      al["song"] = std::move(song_list);
+
+      return crow::response(200, root);
+  };
+  CROW_ROUTE(app_, "/rest/getAlbum")(getAlbum_handler);
+  CROW_ROUTE(app_, "/rest/getAlbum.view")(getAlbum_handler);
 }
 }  // namespace localstream
